@@ -32,10 +32,11 @@ function copy(from, to) {
 
 function copyStatic() {
   copy('manifest.json', `${outdir}/manifest.json`)
-  copy('src/popup/index.html', `${outdir}/popup.html`)
-  copy('src/popup/popup.css', `${outdir}/popup.css`)
-  copy('src/options/index.html', `${outdir}/options.html`)
-  copy('src/options/options.css', `${outdir}/options.css`)
+  copy('src/dashboard/index.html', `${outdir}/dashboard.html`)
+  copy('src/dashboard/dashboard.css', `${outdir}/dashboard.css`)
+  for (const s of [16, 48, 128]) {
+    copy(`src/icons/icon${s}.png`, `${outdir}/icons/icon${s}.png`)
+  }
 }
 
 const shared = {
@@ -48,8 +49,7 @@ const shared = {
 
 const entries = [
   { in: 'src/background/background.ts', out: `${outdir}/background.js` },
-  { in: 'src/popup/popup.ts', out: `${outdir}/popup.js` },
-  { in: 'src/options/options.ts', out: `${outdir}/options.js` },
+  { in: 'src/dashboard/dashboard.ts', out: `${outdir}/dashboard.js` },
 ]
 
 async function run() {

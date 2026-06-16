@@ -8,6 +8,9 @@ import type {
 
 declare const __BAKED_API_KEY__: string
 
+const DASHBOARD_URL = chrome.runtime.getURL('dashboard.html')
+const OWN_ORIGIN = chrome.runtime.getURL('')
+
 const RESTRICTED = [
   /^chrome:\/\//i,
   /^chrome-extension:\/\//i,
@@ -46,6 +49,22 @@ async function getApiKey(): Promise<string> {
   return typeof __BAKED_API_KEY__ !== 'undefined' ? __BAKED_API_KEY__ : ''
 }
 
+async function openDashboard() {
+  const existing = await chrome.tabs.query({ url: DASHBOARD_URL })
+  if (existing.length > 0 && existing[0].id != null) {
+    await chrome.tabs.update(existing[0].id, { active: true })
+    if (existing[0].windowId != null) {
+      await chrome.windows.update(existing[0].windowId, { focused: true })
+    }
+    return
+  }
+  await chrome.tabs.create({ url: DASHBOARD_URL })
+}
+
+chrome.action.onClicked.addListener(() => {
+  void openDashboard()
+})
+
 async function collectTabs(): Promise<{
   signals: TabSignal[]
   tabs: Record<number, ArchivedTab>
@@ -57,8 +76,9 @@ async function collectTabs(): Promise<{
   await Promise.all(
     open.map(async (t) => {
       if (t.id == null) return
-      const title = t.title || '(untitled)'
       const url = t.url || ''
+      if (url.startsWith(OWN_ORIGIN)) return
+      const title = t.title || '(untitled)'
       tabs[t.id] = { title, url, favIconUrl: t.favIconUrl }
 
       let signal = ''
@@ -97,7 +117,7 @@ async function cluster(force: boolean): Promise<CachedClustering> {
   if (!key) throw new Error('NO_API_KEY')
 
   const { signals, tabs } = await collectTabs()
-  if (signals.length === 0) throw new Error('No open tabs to cluster.')
+  if (signals.length === 0) throw new Error('No clusterable tabs in this window.')
 
   const win = await chrome.windows.getCurrent()
   const clusters = await callAnthropic(key, signals)

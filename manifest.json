@@ -6,12 +6,20 @@
   "permissions": ["tabs", "storage", "scripting"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "Tabulate"
+    "default_title": "Open Tabulate",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "background": {
     "service_worker": "background.js",
     "type": "module"
-  },
-  "options_page": "options.html"
+  }
 }
