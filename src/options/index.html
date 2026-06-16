@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="options.css" />
+    <title>Tabulate — Options</title>
+  </head>
+  <body>
+    <main>
+      <h1><span class="logo-dot"></span>Tabulate</h1>
+      <p class="sub">Set your Anthropic API key. Stored locally in this browser via <code>chrome.storage.local</code> — never synced or sent anywhere except the Anthropic API.</p>
+
+      <label for="key">Anthropic API key</label>
+      <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+
+      <div class="row">
+        <button id="save" class="btn btn-accent">Save</button>
+        <button id="clear" class="btn">Clear</button>
+        <span id="status" class="status"></span>
+      </div>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

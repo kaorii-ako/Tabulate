@@ -1,0 +1,282 @@
+:root {
+  --bg: #0f1115;
+  --card: #171a21;
+  --card-hover: #1c2029;
+  --border: #272c36;
+  --text: #e6e8eb;
+  --muted: #8b93a1;
+  --accent: #5b9dff;
+  --accent-soft: rgba(91, 157, 255, 0.14);
+  --danger: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  width: 380px;
+  max-height: 560px;
+  overflow-y: auto;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+#app {
+  padding: 14px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+header h1 {
+  font-size: 16px;
+  margin: 0;
+  letter-spacing: -0.02em;
+  flex: 1;
+}
+
+.logo-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--accent);
+  display: inline-block;
+  margin-right: 7px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 3px;
+  margin-bottom: 14px;
+}
+
+.tabs button {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tabs button.active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.btn {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-accent {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 12px 13px;
+  margin-bottom: 10px;
+  transition: background 0.12s ease;
+}
+
+.card:hover {
+  background: var(--card-hover);
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.card-head .name {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.count {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1px 7px;
+}
+
+.summary {
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0 0 11px;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favstrip {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.favstrip img {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  margin-right: -4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.favstrip .more {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: 10px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.center {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  margin: 0 auto 14px;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 9px;
+  padding: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.session {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.session-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px;
+  cursor: pointer;
+}
+
+.session-head .name {
+  font-weight: 700;
+  flex: 1;
+}
+
+.session-head .when {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.session-body {
+  border-top: 1px solid var(--border);
+  padding: 10px 13px 12px;
+}
+
+.session-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.session-tab img {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.session-tab span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-body .btn {
+  margin-top: 10px;
+}
+
+.chev {
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.chev.open {
+  transform: rotate(90deg);
+}
