@@ -52,6 +52,27 @@ function timeAgo(ts: number): string {
   return d === 1 ? 'yesterday' : `${d}d ago`
 }
 
+function hueFor(name: string): number {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360
+  return h
+}
+
+function countUp(node: HTMLElement, to: number, ms = 650) {
+  if (to <= 0) {
+    node.textContent = '0'
+    return
+  }
+  const start = performance.now()
+  const step = (now: number) => {
+    const t = Math.min(1, (now - start) / ms)
+    const eased = 1 - Math.pow(1 - t, 3)
+    node.textContent = String(Math.round(eased * to))
+    if (t < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+
 function spinner(text: string): HTMLElement {
   return el('div', { className: 'center fade' }, [
     el('div', { className: 'spinner' }),
@@ -98,15 +119,15 @@ async function renderOverview() {
   ])
   const tabsArchived = sessions.reduce((n, s) => n + s.tabs.length, 0)
 
-  const stat = (num: string | number, label: string) =>
-    el('div', { className: 'stat' }, [
-      el('div', { className: 'num' }, [String(num)]),
-      el('div', { className: 'label' }, [label]),
-    ])
+  const stat = (num: number | null, label: string) => {
+    const numEl = el('div', { className: 'num' }, [num === null ? '—' : '0'])
+    if (num !== null) countUp(numEl, num)
+    return el('div', { className: 'stat' }, [numEl, el('div', { className: 'label' }, [label])])
+  }
 
   const grid = el('div', { className: 'stat-grid' }, [
     stat(openTabs.length, 'Open tabs (this window)'),
-    stat(cache ? cache.clusters.length : '—', 'Current clusters'),
+    stat(cache ? cache.clusters.length : null, 'Current clusters'),
     stat(sessions.length, 'Archived sessions'),
     stat(tabsArchived, 'Tabs archived total'),
   ])
@@ -162,14 +183,21 @@ function clusterCard(cluster: Cluster, tabs: Record<number, ArchivedTab>): HTMLE
   const archiveBtn = el('button', { className: 'btn btn-accent btn-sm' }, ['Archive'])
   archiveBtn.onclick = () => archiveCluster(cluster)
 
-  return el('div', { className: 'card fade' }, [
+  const hue = hueFor(cluster.name)
+  const dot = el('span', { className: 'dot' })
+  dot.style.background = `oklch(0.7 0.16 ${hue})`
+
+  const card = el('div', { className: 'card fade' }, [
     el('div', { className: 'card-head' }, [
+      dot,
       el('span', { className: 'name' }, [cluster.name]),
       el('span', { className: 'count' }, [String(cluster.tabIds.length)]),
     ]),
     el('p', { className: 'summary' }, [cluster.summary || '—']),
     el('div', { className: 'card-foot' }, [strip, archiveBtn]),
   ])
+  card.style.setProperty('--hue', String(hue))
+  return card
 }
 
 function reclusterBtn(): HTMLElement {
@@ -246,19 +274,25 @@ function renderClusterError(error: string) {
 
 async function archiveCluster(cluster: Cluster) {
   if (!lastResult) return
-  const tabs = cluster.tabIds
-    .map((id) => lastResult!.tabs[id])
-    .filter((t): t is ArchivedTab => Boolean(t))
+  const knownIds = cluster.tabIds.filter((id) => lastResult!.tabs[id])
+  const tabs = knownIds.map((id) => lastResult!.tabs[id])
 
+  const stamp = Date.now()
   await chrome.storage.local.set({
-    [`session_${Date.now()}`]: {
-      archivedAt: Date.now(),
+    [`session_${stamp}`]: {
+      archivedAt: stamp,
       name: cluster.name,
       summary: cluster.summary,
       tabs,
     },
   })
-  await chrome.tabs.remove(cluster.tabIds).catch(() => {})
+
+  // Only close tabs whose live URL still matches the snapshot — guards against
+  // reused/stale tab IDs from a cached clustering closing the wrong tab.
+  const live = await chrome.tabs.query({ currentWindow: true })
+  const liveUrl = new Map(live.map((t) => [t.id, t.url]))
+  const toClose = knownIds.filter((id) => liveUrl.get(id) === lastResult!.tabs[id].url)
+  if (toClose.length > 0) await chrome.tabs.remove(toClose).catch(() => {})
 
   lastResult = {
     ...lastResult,

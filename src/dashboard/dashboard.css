@@ -81,6 +81,14 @@ body {
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  background: linear-gradient(100deg, #fff 10%, #9cc4ff 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-logo {
+  box-shadow: 0 0 0 1px rgba(91, 157, 255, 0.25), 0 6px 18px rgba(91, 157, 255, 0.22);
 }
 
 nav {
@@ -135,14 +143,27 @@ nav a.active {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  background:
+    radial-gradient(620px 320px at 88% -8%, rgba(91, 157, 255, 0.07), transparent 70%),
+    var(--bg);
 }
 
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 22px 30px;
   border-bottom: 1px solid var(--border-soft);
+}
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 200px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
 }
 
 .topbar h1 {
@@ -226,11 +247,39 @@ nav a.active {
   padding: 18px 18px 16px;
 }
 
+.stat {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.16s ease, transform 0.16s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.stat::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  width: 130px;
+  height: 130px;
+  background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.stat:hover {
+  border-color: var(--accent-line);
+  transform: translateY(-2px);
+}
+.stat:hover::after {
+  opacity: 1;
+}
 .stat .num {
-  font-size: 30px;
+  font-size: 31px;
   font-weight: 750;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  background: linear-gradient(160deg, #fff, #b9cdf0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .stat .label {
@@ -256,17 +305,42 @@ nav a.active {
 }
 
 .card {
+  position: relative;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 13px;
   padding: 16px;
   display: flex;
   flex-direction: column;
-  transition: background 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+  overflow: hidden;
+  transition: background 0.16s ease, transform 0.16s cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: oklch(0.7 0.16 var(--hue, 250));
+  opacity: 0;
+  transition: opacity 0.18s ease;
 }
 .card:hover {
   background: var(--card-hover);
   box-shadow: var(--shadow);
+  transform: translateY(-3px);
+  border-color: oklch(0.55 0.1 var(--hue, 250) / 0.6);
+}
+.card:hover::before {
+  opacity: 0.9;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px 0 oklch(0.7 0.16 var(--hue, 250) / 0.55);
 }
 
 .card-head {
@@ -282,6 +356,7 @@ nav a.active {
   letter-spacing: -0.01em;
   flex: 1;
   min-width: 0;
+  text-wrap: balance;
 }
 
 .count {
@@ -300,6 +375,7 @@ nav a.active {
   margin: 0 0 14px;
   font-size: 13px;
   flex: 1;
+  text-wrap: pretty;
 }
 
 .card-foot {

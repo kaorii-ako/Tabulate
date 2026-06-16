@@ -34,7 +34,7 @@ export async function callAnthropic(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 2048,
+      max_tokens: 4096,
       system: SYSTEM,
       messages: [{ role: 'user', content: 'Tabs:\n' + JSON.stringify(payload) }],
     }),

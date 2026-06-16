@@ -107,6 +107,34 @@ async function collectTabs(): Promise<{
   return { signals, tabs }
 }
 
+function sanitizeClusters(
+  raw: { name: string; summary: string; tabIds: number[] }[],
+  signals: TabSignal[],
+): { name: string; summary: string; tabIds: number[] }[] {
+  const valid = new Set(signals.map((s) => s.id))
+  const seen = new Set<number>()
+  const clusters = raw
+    .map((c) => ({
+      ...c,
+      tabIds: c.tabIds.filter((id) => {
+        if (!valid.has(id) || seen.has(id)) return false
+        seen.add(id)
+        return true
+      }),
+    }))
+    .filter((c) => c.tabIds.length > 0)
+
+  const leftover = signals.filter((s) => !seen.has(s.id)).map((s) => s.id)
+  if (leftover.length > 0) {
+    clusters.push({
+      name: 'Ungrouped',
+      summary: 'Tabs the model did not place in a cluster.',
+      tabIds: leftover,
+    })
+  }
+  return clusters
+}
+
 async function cluster(force: boolean): Promise<CachedClustering> {
   if (!force) {
     const { lastClustering } = await chrome.storage.local.get('lastClustering')
@@ -120,7 +148,8 @@ async function cluster(force: boolean): Promise<CachedClustering> {
   if (signals.length === 0) throw new Error('No clusterable tabs in this window.')
 
   const win = await chrome.windows.getCurrent()
-  const clusters = await callAnthropic(key, signals)
+  const raw = await callAnthropic(key, signals)
+  const clusters = sanitizeClusters(raw, signals)
 
   const result: CachedClustering = {
     windowId: win.id ?? -1,
