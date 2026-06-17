@@ -22,6 +22,7 @@ export const PROVIDERS: Provider[] = [
   { id: 'mistral', label: 'Mistral', kind: 'openai', baseUrl: 'https://api.mistral.ai/v1', defaultModel: 'mistral-small-latest', keyHint: '...' },
   { id: 'xai', label: 'xAI (Grok)', kind: 'openai', baseUrl: 'https://api.x.ai/v1', defaultModel: 'grok-2-latest', keyHint: 'xai-...' },
   { id: 'together', label: 'Together AI', kind: 'openai', baseUrl: 'https://api.together.xyz/v1', defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo', keyHint: '...' },
+  { id: 'mimo', label: 'Xiaomi MiMo', kind: 'openai', baseUrl: 'https://api.xiaomimimo.com/v1', defaultModel: 'mimo-v2-flash', keyHint: 'API key' },
   { id: 'custom', label: 'Custom (OpenAI-compatible)', kind: 'openai', baseUrl: '', defaultModel: '', keyHint: 'API key', custom: true },
 ]
 

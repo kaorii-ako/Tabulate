@@ -19,7 +19,7 @@ extension itself — no server, works offline) with four views:
 
 Tabulate isn't tied to one vendor. Settings has a provider dropdown — pick one, set the model, paste the key:
 
-- **Anthropic** (Claude) · **OpenAI** · **Google Gemini** · **Groq** · **OpenRouter** · **DeepSeek** · **Mistral** · **xAI (Grok)** · **Together AI**
+- **Anthropic** (Claude) · **OpenAI** · **Google Gemini** · **Groq** · **OpenRouter** · **DeepSeek** · **Mistral** · **xAI (Grok)** · **Together AI** · **Xiaomi MiMo**
 - **Custom (OpenAI-compatible)** — any `/chat/completions` endpoint (local LLMs, self-hosted, niche providers): just give it a base URL.
 
 Three request shapes under the hood — Anthropic `/v1/messages`, OpenAI-style `/chat/completions` (covers most), and Gemini `generateContent`. The clustering call runs from the extension's service worker, which has host permissions for all hosts, so it isn't blocked by browser CORS. Provider, model, base URL and key all live in `chrome.storage.local`.
