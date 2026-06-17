@@ -7,6 +7,7 @@
     <title>Tabulate</title>
   </head>
   <body>
+    <div class="ambient" aria-hidden="true"></div>
     <div class="layout">
       <aside class="sidebar">
         <div class="brand">
@@ -20,13 +21,17 @@
           <a href="#settings" data-view="settings"><span class="ico">⚙</span>Settings</a>
         </nav>
         <div class="sidebar-foot">
+          <div class="kbd-hint"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd>switch views</div>
           <span class="muted">AI tab manager</span>
-          <span class="muted" id="version">v0.1.0</span>
+          <span class="muted" id="version">v0.2.0</span>
         </div>
       </aside>
       <main class="main">
         <header class="topbar">
           <h1 id="title">Overview</h1>
+          <button id="quickswitch" class="qs-btn" title="Quick switch to any open tab">
+            <span class="qs-ico">⌕</span>Quick switch<kbd>⌘K</kbd>
+          </button>
           <div id="actions" class="actions"></div>
         </header>
         <section id="content" class="content"></section>

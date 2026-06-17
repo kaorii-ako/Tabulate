@@ -57,7 +57,7 @@ function parseClusters(text: string): Cluster[] {
   }
   const start = s.indexOf('{')
   const end = s.lastIndexOf('}')
-  if (start > 0 || (end !== -1 && end < s.length - 1)) {
+  if (start !== -1 && end > start && (start > 0 || end < s.length - 1)) {
     s = s.slice(start, end + 1)
   }
 

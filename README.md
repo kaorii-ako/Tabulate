@@ -11,9 +11,19 @@ Clicking the toolbar icon opens a full-page **dashboard** (served from the
 extension itself — no server, works offline) with four views:
 
 - **Overview** — live stats: open tabs, current clusters, archived sessions, total tabs archived, plus recent archives.
-- **Clusters** — one AI pass groups every tab in the current window into cards (name, summary, count, favicon strip, **Archive**).
+- **Clusters** — one AI pass groups every tab in the current window into cards (name, summary, count, favicon strip, **Archive**). Expand a card to act on individual tabs; double-click a name to rename.
 - **Archived** — searchable history of past archives; expand any session to see its tabs, open one in a click, **Reopen all**, or **Delete**.
-- **Settings** — API key entry (show/hide), model info, and a danger zone to clear the cache or wipe all sessions.
+- **Settings** — API key entry (show/hide), model info, JSON backup/restore, and a danger zone to clear the cache or wipe all sessions.
+
+## v0.2 — quality-of-life improvements
+
+Three additions that make the difference between a demo and a tool you'd actually keep:
+
+1. **Quick Switch (`⌘K` / `Ctrl+K`, or `/`)** — a command palette that fuzzy-searches every open tab across all windows by title or host. Arrow keys + Enter jump straight to the tab and focus its window. Finding one tab among 40 no longer means squinting at a strip of favicons.
+2. **Editable clusters** — the AI's first guess is a starting point, not a verdict. Expand any cluster to see its tabs, click one to jump to it, or close it inline (`✕`). Double-click a cluster name to rename it. Edits persist to the cache.
+3. **Backup & restore** — export all archived sessions to a JSON file from Settings, and import a backup on another machine. Imports merge (timestamp-keyed), so they never clobber existing sessions.
+
+Plus a redesigned dashboard: animated ambient field, glass surfaces, mouse-tracked stat cards, per-cluster color, staggered motion, and keyboard navigation (`1`–`4` switch views).
 
 ## Features
 

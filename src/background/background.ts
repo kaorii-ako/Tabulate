@@ -136,9 +136,15 @@ function sanitizeClusters(
 }
 
 async function cluster(force: boolean): Promise<CachedClustering> {
+  const win = await chrome.windows.getCurrent()
+
   if (!force) {
     const { lastClustering } = await chrome.storage.local.get('lastClustering')
-    if (lastClustering) return lastClustering as CachedClustering
+    // Only reuse the cache for the window it was built from — tab IDs are
+    // per-window, so a cross-window hit would render the wrong tabs.
+    if (lastClustering && (lastClustering as CachedClustering).windowId === win.id) {
+      return lastClustering as CachedClustering
+    }
   }
 
   const key = await getApiKey()
@@ -146,8 +152,6 @@ async function cluster(force: boolean): Promise<CachedClustering> {
 
   const { signals, tabs } = await collectTabs()
   if (signals.length === 0) throw new Error('No clusterable tabs in this window.')
-
-  const win = await chrome.windows.getCurrent()
   const raw = await callAnthropic(key, signals)
   const clusters = sanitizeClusters(raw, signals)
 

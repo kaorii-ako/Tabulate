@@ -31,10 +31,23 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node
 }
 
+function safeUrl(url: string | undefined): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    return u.protocol === 'http:' || u.protocol === 'https:' ? url : null
+  } catch {
+    return null
+  }
+}
+
 function favicon(url: string | undefined, size = 18): HTMLImageElement {
-  const img = el('img', { src: url || '' })
+  const img = el('img', {})
   img.width = size
   img.height = size
+  const safe = safeUrl(url)
+  if (safe) img.src = safe
+  else img.style.visibility = 'hidden'
   img.onerror = () => {
     img.style.visibility = 'hidden'
   }
@@ -73,6 +86,20 @@ function countUp(node: HTMLElement, to: number, ms = 650) {
   requestAnimationFrame(step)
 }
 
+function stagger(container: HTMLElement) {
+  Array.from(container.children).forEach((child, i) =>
+    (child as HTMLElement).style.setProperty('--i', String(i)),
+  )
+}
+
+function trackSpotlight(node: HTMLElement) {
+  node.addEventListener('pointermove', (e) => {
+    const r = node.getBoundingClientRect()
+    node.style.setProperty('--mx', `${e.clientX - r.left}px`)
+    node.style.setProperty('--my', `${e.clientY - r.top}px`)
+  })
+}
+
 function spinner(text: string): HTMLElement {
   return el('div', { className: 'center fade' }, [
     el('div', { className: 'spinner' }),
@@ -106,6 +133,142 @@ async function loadArchived(): Promise<ArchivedSession[]> {
     .sort((a, b) => b.archivedAt - a.archivedAt)
 }
 
+function hostOf(url: string | undefined): string {
+  try {
+    return new URL(url || '').hostname.replace(/^www\./, '')
+  } catch {
+    return ''
+  }
+}
+
+/* ---------- Tab navigation ---------- */
+
+async function goToUrl(url: string) {
+  const safe = safeUrl(url)
+  if (!safe) return
+  const tabs = await chrome.tabs.query({})
+  const match = tabs.find((t) => t.url === safe)
+  if (match?.id != null) {
+    await chrome.tabs.update(match.id, { active: true })
+    if (match.windowId != null) await chrome.windows.update(match.windowId, { focused: true })
+  } else {
+    await chrome.tabs.create({ url: safe })
+  }
+}
+
+/* ---------- Command palette (Quick Switch) ---------- */
+
+let paletteEl: HTMLElement | null = null
+
+async function openPalette() {
+  if (paletteEl) return
+  const tabs = (await chrome.tabs.query({})).filter(
+    (t) => t.id != null && !(t.url || '').startsWith(OWN_ORIGIN),
+  )
+
+  const input = el('input', {
+    className: 'pal-input',
+    placeholder: 'Jump to an open tab…',
+    autocomplete: 'off',
+    spellcheck: false,
+  }) as HTMLInputElement
+  const list = el('div', { className: 'pal-list' })
+  const box = el('div', { className: 'pal-box' }, [
+    el('div', { className: 'pal-field' }, [el('span', { className: 'pal-ico' }, ['⌕']), input]),
+    list,
+    el('div', { className: 'pal-foot' }, [
+      el('span', {}, ['↑↓ navigate']),
+      el('span', {}, ['↵ open']),
+      el('span', {}, ['esc close']),
+    ]),
+  ])
+  const overlay = el('div', { className: 'palette fade' }, [box])
+  paletteEl = overlay
+  document.body.append(overlay)
+
+  let sel = 0
+  let view: chrome.tabs.Tab[] = tabs
+
+  const markSel = () =>
+    Array.from(list.children).forEach((c, i) =>
+      (c as HTMLElement).classList.toggle('sel', i === sel),
+    )
+  const scrollSel = () =>
+    (list.children[sel] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest' })
+
+  const choose = async (i: number) => {
+    const t = view[i]
+    closePalette()
+    if (t?.id != null) {
+      await chrome.tabs.update(t.id, { active: true })
+      if (t.windowId != null) await chrome.windows.update(t.windowId, { focused: true })
+    }
+  }
+
+  const paint = () => {
+    const q = input.value.trim().toLowerCase()
+    view = q
+      ? tabs.filter(
+          (t) =>
+            (t.title || '').toLowerCase().includes(q) || (t.url || '').toLowerCase().includes(q),
+        )
+      : tabs
+    if (sel >= view.length) sel = Math.max(0, view.length - 1)
+    list.replaceChildren(
+      ...(view.length
+        ? view.map((t, i) => {
+            const row = el('div', { className: 'pal-row' + (i === sel ? ' sel' : '') }, [
+              favicon(t.favIconUrl, 16),
+              el('span', { className: 'pal-title' }, [t.title || '(untitled)']),
+              el('span', { className: 'pal-url' }, [hostOf(t.url)]),
+            ])
+            row.onmouseenter = () => {
+              sel = i
+              markSel()
+            }
+            row.onclick = () => choose(i)
+            return row
+          })
+        : [el('div', { className: 'pal-empty' }, ['No matching tabs'])]),
+    )
+  }
+
+  input.oninput = () => {
+    sel = 0
+    paint()
+  }
+  overlay.onclick = (e) => {
+    if (e.target === overlay) closePalette()
+  }
+  input.onkeydown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      sel = Math.min(view.length - 1, sel + 1)
+      markSel()
+      scrollSel()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      sel = Math.max(0, sel - 1)
+      markSel()
+      scrollSel()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (view.length) void choose(sel)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closePalette()
+    }
+  }
+
+  paint()
+  input.focus()
+}
+
+function closePalette() {
+  paletteEl?.remove()
+  paletteEl = null
+}
+
 /* ---------- Overview ---------- */
 
 async function renderOverview() {
@@ -122,7 +285,9 @@ async function renderOverview() {
   const stat = (num: number | null, label: string) => {
     const numEl = el('div', { className: 'num' }, [num === null ? '—' : '0'])
     if (num !== null) countUp(numEl, num)
-    return el('div', { className: 'stat' }, [numEl, el('div', { className: 'label' }, [label])])
+    const card = el('div', { className: 'stat' }, [numEl, el('div', { className: 'label' }, [label])])
+    trackSpotlight(card)
+    return card
   }
 
   const grid = el('div', { className: 'stat-grid' }, [
@@ -131,6 +296,7 @@ async function renderOverview() {
     stat(sessions.length, 'Archived sessions'),
     stat(tabsArchived, 'Tabs archived total'),
   ])
+  stagger(grid)
 
   const cta = el('button', { className: 'btn btn-accent' }, [
     cache ? 'View clusters' : 'Cluster my tabs',
@@ -172,29 +338,96 @@ function setActions(...nodes: HTMLElement[]) {
   actionsEl.replaceChildren(...nodes)
 }
 
+async function renameCluster(cluster: Cluster, name: string) {
+  cluster.name = name
+  if (lastResult) await chrome.storage.local.set({ lastClustering: lastResult })
+}
+
+async function closeTabInCluster(cluster: Cluster, tabId: number, url: string) {
+  const live = await chrome.tabs.query({})
+  const match = live.find((t) => t.id === tabId && t.url === url) || live.find((t) => t.url === url)
+  if (match?.id != null) await chrome.tabs.remove(match.id).catch(() => {})
+  cluster.tabIds = cluster.tabIds.filter((id) => id !== tabId)
+  if (lastResult) await chrome.storage.local.set({ lastClustering: lastResult })
+  renderClusters()
+}
+
 function clusterCard(cluster: Cluster, tabs: Record<number, ArchivedTab>): HTMLElement {
-  const metas = cluster.tabIds.map((id) => tabs[id]).filter(Boolean) as ArchivedTab[]
+  const metas = cluster.tabIds
+    .map((id) => ({ id, meta: tabs[id] }))
+    .filter((x) => x.meta) as { id: number; meta: ArchivedTab }[]
+
   const strip = el('div', { className: 'favstrip' })
-  metas.slice(0, 10).forEach((m) => strip.append(favicon(m.favIconUrl)))
+  metas.slice(0, 10).forEach((m) => strip.append(favicon(m.meta.favIconUrl)))
   if (metas.length > 10) {
     strip.append(el('span', { className: 'more' }, [`+${metas.length - 10}`]))
+  }
+
+  const hue = hueFor(cluster.name)
+
+  // Expandable tab list — activate or close individual tabs.
+  const body = el('div', { className: 'cluster-tabs' })
+  body.style.display = 'none'
+  metas.forEach(({ id, meta }) => {
+    const title = el('span', { className: 't' }, [meta.title])
+    const close = el('button', { className: 'ctab-x', title: 'Close tab' }, ['✕'])
+    close.onclick = (e) => {
+      e.stopPropagation()
+      void closeTabInCluster(cluster, id, meta.url)
+    }
+    const row = el('div', { className: 'ctab', title: meta.url }, [
+      favicon(meta.favIconUrl, 15),
+      title,
+      el('span', { className: 'ctab-go' }, ['↗']),
+      close,
+    ])
+    row.onclick = () => void goToUrl(meta.url)
+    body.append(row)
+  })
+
+  const dot = el('span', { className: 'dot' })
+  const name = el('span', { className: 'name', title: 'Double-click to rename' }, [cluster.name])
+  const count = el('span', { className: 'count' }, [String(cluster.tabIds.length)])
+  const chev = el('span', { className: 'chev' }, ['▸'])
+
+  const head = el('div', { className: 'card-head' }, [dot, name, count, chev])
+  head.onclick = () => {
+    const open = body.style.display === 'none'
+    body.style.display = open ? 'block' : 'none'
+    chev.classList.toggle('open', open)
+  }
+
+  // Inline rename on double-click.
+  name.ondblclick = (e) => {
+    e.stopPropagation()
+    const input = el('input', { className: 'rename', value: cluster.name }) as HTMLInputElement
+    name.replaceWith(input)
+    input.focus()
+    input.select()
+    const commit = async () => {
+      const v = input.value.trim() || cluster.name
+      await renameCluster(cluster, v)
+      renderClusters()
+    }
+    input.onkeydown = (ev) => {
+      if (ev.key === 'Enter') input.blur()
+      else if (ev.key === 'Escape') {
+        input.value = cluster.name
+        input.blur()
+      }
+    }
+    input.onblur = () => void commit()
+    input.onclick = (ev) => ev.stopPropagation()
   }
 
   const archiveBtn = el('button', { className: 'btn btn-accent btn-sm' }, ['Archive'])
   archiveBtn.onclick = () => archiveCluster(cluster)
 
-  const hue = hueFor(cluster.name)
-  const dot = el('span', { className: 'dot' })
-  dot.style.background = `oklch(0.7 0.16 ${hue})`
-
   const card = el('div', { className: 'card fade' }, [
-    el('div', { className: 'card-head' }, [
-      dot,
-      el('span', { className: 'name' }, [cluster.name]),
-      el('span', { className: 'count' }, [String(cluster.tabIds.length)]),
-    ]),
+    head,
     el('p', { className: 'summary' }, [cluster.summary || '—']),
     el('div', { className: 'card-foot' }, [strip, archiveBtn]),
+    body,
   ])
   card.style.setProperty('--hue', String(hue))
   return card
@@ -235,6 +468,7 @@ function renderClusters() {
   }
   const grid = el('div', { className: 'grid' })
   for (const c of lastResult.clusters) grid.append(clusterCard(c, lastResult.tabs))
+  stagger(grid)
   contentEl.replaceChildren(
     el('div', { className: 'fade' }, [
       el('div', { className: 'section-title' }, [
@@ -355,7 +589,7 @@ function sessionCard(session: ArchivedSession): HTMLElement {
   session.tabs.forEach((t) => {
     const row = el('a', {
       className: 'session-tab',
-      href: t.url || '#',
+      href: safeUrl(t.url) || '#',
       target: '_blank',
       rel: 'noreferrer',
       title: t.url,
@@ -371,7 +605,10 @@ function sessionCard(session: ArchivedSession): HTMLElement {
   const reopen = el('button', { className: 'btn btn-accent btn-sm' }, ['Reopen all'])
   reopen.onclick = (e) => {
     e.stopPropagation()
-    for (const t of session.tabs) if (t.url) chrome.tabs.create({ url: t.url, active: false })
+    for (const t of session.tabs) {
+      const url = safeUrl(t.url)
+      if (url) chrome.tabs.create({ url, active: false })
+    }
   }
   const del = el('button', { className: 'btn btn-danger btn-sm' }, ['Delete'])
   del.onclick = async (e) => {
@@ -396,6 +633,47 @@ function sessionCard(session: ArchivedSession): HTMLElement {
   }
 
   return el('div', { className: 'session fade' }, [head, body])
+}
+
+/* ---------- Backup ---------- */
+
+async function exportArchives(): Promise<number> {
+  const sessions = await loadArchived()
+  const payload = {
+    app: 'tabulate',
+    version: 1,
+    exportedAt: Date.now(),
+    sessions: sessions.map(({ key: _key, ...s }) => s),
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = el('a', { href: url, download: `tabulate-archives-${new Date().toISOString().slice(0, 10)}.json` })
+  a.click()
+  URL.revokeObjectURL(url)
+  return sessions.length
+}
+
+async function importArchives(file: File): Promise<number> {
+  const text = await file.text()
+  const data = JSON.parse(text)
+  const list: any[] = Array.isArray(data) ? data : Array.isArray(data?.sessions) ? data.sessions : []
+  let added = 0
+  const writes: Record<string, unknown> = {}
+  list.forEach((s, i) => {
+    if (!s || !Array.isArray(s.tabs)) return
+    const stamp = (Number(s.archivedAt) || Date.now()) + i
+    writes[`session_${stamp}`] = {
+      archivedAt: stamp,
+      name: String(s.name ?? 'Imported session'),
+      summary: String(s.summary ?? ''),
+      tabs: s.tabs
+        .filter((t: any) => t && typeof t.url === 'string')
+        .map((t: any) => ({ title: String(t.title ?? t.url), url: t.url, favIconUrl: t.favIconUrl })),
+    }
+    added++
+  })
+  if (added > 0) await chrome.storage.local.set(writes)
+  return added
 }
 
 /* ---------- Settings ---------- */
@@ -465,7 +743,7 @@ async function renderSettings() {
     el('div', { className: 'kv' }, [
       el('span', { className: 'k' }, ['Key source']),
       el('span', { className: 'v' }, [
-        typeof apiKey === 'string' && apiKey ? 'options' : 'build / none',
+        typeof apiKey === 'string' && apiKey ? 'settings' : 'build / none',
       ]),
     ]),
   ])
@@ -487,6 +765,43 @@ async function renderSettings() {
     wipe.textContent = 'Delete 0'
   }
 
+  const status2 = el('span', { className: 'status' })
+  let status2Timer: number | undefined
+  const flash2 = (t: string) => {
+    status2.textContent = t
+    if (status2Timer) clearTimeout(status2Timer)
+    status2Timer = window.setTimeout(() => (status2.textContent = ''), 2000)
+  }
+
+  const exportBtn = el('button', { className: 'btn btn-sm' }, [`Export ${sessions.length}`])
+  exportBtn.onclick = async () => {
+    const n = await exportArchives()
+    flash2(n > 0 ? `Exported ${n}` : 'Nothing to export')
+  }
+  const fileInput = el('input', { type: 'file', accept: 'application/json' }) as HTMLInputElement
+  fileInput.style.display = 'none'
+  fileInput.onchange = async () => {
+    const f = fileInput.files?.[0]
+    if (!f) return
+    try {
+      const n = await importArchives(f)
+      flash2(n > 0 ? `Imported ${n}` : 'No sessions found')
+    } catch {
+      flash2('Invalid file')
+    }
+    fileInput.value = ''
+  }
+  const importBtn = el('button', { className: 'btn btn-sm' }, ['Import…'])
+  importBtn.onclick = () => fileInput.click()
+
+  const backupPanel = el('div', { className: 'panel' }, [
+    el('h2', {}, ['Backup & restore']),
+    el('p', { className: 'desc' }, [
+      'Export archived sessions to a JSON file, or import a previous backup. Imports merge — they never overwrite existing sessions.',
+    ]),
+    el('div', { className: 'row' }, [exportBtn, importBtn, fileInput, status2]),
+  ])
+
   const dangerPanel = el('div', { className: 'panel danger' }, [
     el('h2', {}, ['Danger zone']),
     el('div', { className: 'danger-row' }, [
@@ -506,7 +821,7 @@ async function renderSettings() {
   ])
 
   contentEl.replaceChildren(
-    el('div', { className: 'fade' }, [keyPanel, infoPanel, dangerPanel]),
+    el('div', { className: 'fade' }, [keyPanel, infoPanel, backupPanel, dangerPanel]),
   )
 }
 
@@ -544,4 +859,27 @@ function route() {
 }
 
 window.addEventListener('hashchange', route)
+
+document.getElementById('quickswitch')?.addEventListener('click', () => void openPalette())
+
+window.addEventListener('keydown', (e) => {
+  // Quick switch — Cmd/Ctrl+K from anywhere.
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    void openPalette()
+    return
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  const tag = (e.target as HTMLElement)?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return
+  // "/" also opens quick switch; number keys jump between views.
+  if (e.key === '/') {
+    e.preventDefault()
+    void openPalette()
+    return
+  }
+  const idx = Number(e.key) - 1
+  if (idx >= 0 && idx < VIEWS.length) location.hash = `#${VIEWS[idx]}`
+})
+
 route()
