@@ -1,3 +1,13 @@
+import type { ProviderKind } from './providers'
+
+export interface AIConfig {
+  provider: string
+  kind: ProviderKind
+  baseUrl: string
+  model: string
+  apiKey: string
+}
+
 export interface TabSignal {
   id: number
   title: string

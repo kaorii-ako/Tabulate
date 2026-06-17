@@ -1,5 +1,7 @@
-import { callAnthropic } from '../lib/ai'
+import { callAI } from '../lib/ai'
+import { providerById } from '../lib/providers'
 import type {
+  AIConfig,
   ArchivedTab,
   BackgroundRequest,
   CachedClustering,
@@ -43,10 +45,20 @@ function grabSignal(): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, 300)
 }
 
-async function getApiKey(): Promise<string> {
-  const { apiKey } = await chrome.storage.local.get('apiKey')
-  if (typeof apiKey === 'string' && apiKey) return apiKey
-  return typeof __BAKED_API_KEY__ !== 'undefined' ? __BAKED_API_KEY__ : ''
+async function getConfig(): Promise<AIConfig> {
+  const st = await chrome.storage.local.get(['provider', 'apiKey', 'model', 'baseUrl'])
+  const p = providerById(typeof st.provider === 'string' ? st.provider : undefined)
+
+  let key = typeof st.apiKey === 'string' ? st.apiKey : ''
+  // Baked key only applies to the default (Anthropic) provider.
+  if (!key && p.kind === 'anthropic' && typeof __BAKED_API_KEY__ !== 'undefined') {
+    key = __BAKED_API_KEY__
+  }
+
+  const baseUrl = (p.custom ? String(st.baseUrl || '') : p.baseUrl).replace(/\/+$/, '')
+  const model = typeof st.model === 'string' && st.model ? st.model : p.defaultModel
+
+  return { provider: p.id, kind: p.kind, baseUrl, model, apiKey: key }
 }
 
 async function openDashboard() {
@@ -147,12 +159,13 @@ async function cluster(force: boolean): Promise<CachedClustering> {
     }
   }
 
-  const key = await getApiKey()
-  if (!key) throw new Error('NO_API_KEY')
+  const cfg = await getConfig()
+  if (!cfg.apiKey) throw new Error('NO_API_KEY')
+  if (!cfg.baseUrl) throw new Error('No API base URL set for this provider.')
 
   const { signals, tabs } = await collectTabs()
   if (signals.length === 0) throw new Error('No clusterable tabs in this window.')
-  const raw = await callAnthropic(key, signals)
+  const raw = await callAI(cfg, signals)
   const clusters = sanitizeClusters(raw, signals)
 
   const result: CachedClustering = {

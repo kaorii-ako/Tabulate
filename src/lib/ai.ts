@@ -1,7 +1,4 @@
-import type { Cluster, TabSignal } from './types'
-
-const API_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = 'claude-sonnet-4-6'
+import type { AIConfig, Cluster, TabSignal } from './types'
 
 const SYSTEM = [
   'You are a browser-tab clustering engine.',
@@ -13,41 +10,88 @@ const SYSTEM = [
   'every input tabId must appear in exactly one cluster; aim for 2 to 7 clusters.',
 ].join(' ')
 
-export async function callAnthropic(
-  apiKey: string,
-  tabs: TabSignal[],
-): Promise<Cluster[]> {
+const MAX_TOKENS = 4096
+
+export async function callAI(cfg: AIConfig, tabs: TabSignal[]): Promise<Cluster[]> {
   const payload = tabs.map((t) => ({
     id: t.id,
     title: t.title.slice(0, 160),
     url: t.url.slice(0, 200),
     signal: t.signal,
   }))
+  const userText = 'Tabs:\n' + JSON.stringify(payload)
 
-  const res = await fetch(API_URL, {
+  let text: string
+  if (cfg.kind === 'anthropic') text = await callAnthropic(cfg, userText)
+  else if (cfg.kind === 'gemini') text = await callGemini(cfg, userText)
+  else text = await callOpenAI(cfg, userText)
+
+  return parseClusters(text)
+}
+
+async function fail(res: Response, provider: string): Promise<never> {
+  const body = await res.text().catch(() => '')
+  throw new Error(`${provider} API ${res.status}: ${body.slice(0, 300)}`)
+}
+
+async function callAnthropic(cfg: AIConfig, userText: string): Promise<string> {
+  const res = await fetch(`${cfg.baseUrl}/v1/messages`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': cfg.apiKey,
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 4096,
+      model: cfg.model,
+      max_tokens: MAX_TOKENS,
       system: SYSTEM,
-      messages: [{ role: 'user', content: 'Tabs:\n' + JSON.stringify(payload) }],
+      messages: [{ role: 'user', content: userText }],
     }),
   })
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Anthropic API ${res.status}: ${body.slice(0, 300)}`)
-  }
-
+  if (!res.ok) await fail(res, 'Anthropic')
   const data = await res.json()
-  const text: string = data?.content?.[0]?.text ?? ''
-  return parseClusters(text)
+  return data?.content?.[0]?.text ?? ''
+}
+
+async function callOpenAI(cfg: AIConfig, userText: string): Promise<string> {
+  const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      max_tokens: MAX_TOKENS,
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: userText },
+      ],
+    }),
+  })
+  if (!res.ok) await fail(res, 'OpenAI-compatible')
+  const data = await res.json()
+  return data?.choices?.[0]?.message?.content ?? ''
+}
+
+async function callGemini(cfg: AIConfig, userText: string): Promise<string> {
+  const url =
+    `${cfg.baseUrl}/v1beta/models/${encodeURIComponent(cfg.model)}:generateContent` +
+    `?key=${encodeURIComponent(cfg.apiKey)}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM }] },
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: MAX_TOKENS },
+    }),
+  })
+  if (!res.ok) await fail(res, 'Gemini')
+  const data = await res.json()
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
 }
 
 function parseClusters(text: string): Cluster[] {

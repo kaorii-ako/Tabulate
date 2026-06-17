@@ -1,3 +1,4 @@
+import { PROVIDERS, providerById } from '../lib/providers'
 import type {
   ArchivedSession,
   ArchivedTab,
@@ -6,7 +7,6 @@ import type {
   ClusterResponse,
 } from '../lib/types'
 
-const MODEL = 'claude-sonnet-4-6'
 const OWN_ORIGIN = chrome.runtime.getURL('')
 
 const titleEl = document.getElementById('title') as HTMLHeadingElement
@@ -680,16 +680,55 @@ async function importArchives(file: File): Promise<number> {
 
 async function renderSettings() {
   setActions()
-  const { apiKey } = await chrome.storage.local.get('apiKey')
+  const st = await chrome.storage.local.get(['provider', 'apiKey', 'model', 'baseUrl'])
+  const apiKey = st.apiKey
   const sessions = await loadArchived()
+
+  let provider = providerById(typeof st.provider === 'string' ? st.provider : undefined)
+
+  const select = el('select', { className: 'select' }) as HTMLSelectElement
+  PROVIDERS.forEach((p) => {
+    const opt = el('option', { value: p.id }, [p.label]) as HTMLOptionElement
+    if (p.id === provider.id) opt.selected = true
+    select.append(opt)
+  })
 
   const input = el('input', {
     type: 'password',
-    placeholder: 'sk-ant-...',
+    placeholder: provider.keyHint,
     value: typeof apiKey === 'string' ? apiKey : '',
     autocomplete: 'off',
     spellcheck: false,
   }) as HTMLInputElement
+
+  const model = el('input', {
+    placeholder: provider.defaultModel || 'model id',
+    value: typeof st.model === 'string' ? st.model : '',
+    autocomplete: 'off',
+    spellcheck: false,
+  }) as HTMLInputElement
+
+  const baseUrl = el('input', {
+    placeholder: 'https://api.example.com/v1',
+    value: typeof st.baseUrl === 'string' ? st.baseUrl : '',
+    autocomplete: 'off',
+    spellcheck: false,
+  }) as HTMLInputElement
+  const baseRow = el('div', { className: 'sub-field' }, [
+    el('label', {}, ['Base URL']),
+    baseUrl,
+  ])
+
+  const syncProvider = () => {
+    baseRow.style.display = provider.custom ? 'block' : 'none'
+    input.placeholder = provider.keyHint
+    model.placeholder = provider.defaultModel || 'model id'
+  }
+  select.onchange = () => {
+    provider = providerById(select.value)
+    syncProvider()
+  }
+  syncProvider()
 
   const status = el('span', { className: 'status' })
   let statusTimer: number | undefined
@@ -706,13 +745,19 @@ async function renderSettings() {
     reveal.textContent = hidden ? 'Hide' : 'Show'
   }
 
-  const save = el('button', { className: 'btn btn-accent' }, ['Save key'])
+  const save = el('button', { className: 'btn btn-accent' }, ['Save'])
   save.onclick = async () => {
-    await chrome.storage.local.set({ apiKey: input.value.trim() })
+    await chrome.storage.local.set({
+      provider: provider.id,
+      apiKey: input.value.trim(),
+      model: model.value.trim(),
+      baseUrl: baseUrl.value.trim(),
+    })
     await chrome.runtime.sendMessage({ type: 'INVALIDATE' }).catch(() => {})
     flash('Saved')
+    renderSettings()
   }
-  const clear = el('button', { className: 'btn' }, ['Clear'])
+  const clear = el('button', { className: 'btn' }, ['Clear key'])
   clear.onclick = async () => {
     input.value = ''
     await chrome.storage.local.remove('apiKey')
@@ -721,29 +766,43 @@ async function renderSettings() {
   }
 
   const keyPanel = el('div', { className: 'panel' }, [
-    el('h2', {}, ['Anthropic API key']),
+    el('h2', {}, ['AI provider']),
     el('p', { className: 'desc' }, [
-      'Stored locally via chrome.storage.local — never synced. Used only for requests to the Anthropic API.',
+      'Use any provider. Key, model and base URL are stored locally via chrome.storage.local — never synced, sent only to the provider you pick.',
     ]),
-    el('label', {}, ['API key']),
+    el('label', {}, ['Provider']),
+    el('div', { className: 'field' }, [select]),
+    baseRow,
+    el('label', { style: 'margin-top:14px' as any }, ['Model']),
+    el('div', { className: 'field' }, [model]),
+    el('label', { style: 'margin-top:14px' as any }, ['API key']),
     el('div', { className: 'field' }, [input, reveal]),
     el('div', { className: 'row' }, [save, clear, status]),
   ])
 
+  const baked = !(typeof apiKey === 'string' && apiKey) && provider.kind === 'anthropic'
   const infoPanel = el('div', { className: 'panel' }, [
-    el('h2', {}, ['Model']),
+    el('h2', {}, ['Active configuration']),
     el('div', { className: 'kv' }, [
-      el('span', { className: 'k' }, ['Model']),
-      el('span', { className: 'v' }, [MODEL]),
+      el('span', { className: 'k' }, ['Provider']),
+      el('span', { className: 'v' }, [provider.label]),
     ]),
     el('div', { className: 'kv' }, [
-      el('span', { className: 'k' }, ['API calls']),
-      el('span', { className: 'v' }, ['1 per clustering pass']),
+      el('span', { className: 'k' }, ['Model']),
+      el('span', { className: 'v' }, [
+        (typeof st.model === 'string' && st.model) || provider.defaultModel || '—',
+      ]),
+    ]),
+    el('div', { className: 'kv' }, [
+      el('span', { className: 'k' }, ['Endpoint']),
+      el('span', { className: 'v' }, [
+        provider.custom ? (typeof st.baseUrl === 'string' && st.baseUrl) || '—' : provider.baseUrl,
+      ]),
     ]),
     el('div', { className: 'kv' }, [
       el('span', { className: 'k' }, ['Key source']),
       el('span', { className: 'v' }, [
-        typeof apiKey === 'string' && apiKey ? 'settings' : 'build / none',
+        typeof apiKey === 'string' && apiKey ? 'settings' : baked ? 'build / none' : 'none',
       ]),
     ]),
   ])

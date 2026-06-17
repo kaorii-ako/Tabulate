@@ -13,7 +13,16 @@ extension itself — no server, works offline) with four views:
 - **Overview** — live stats: open tabs, current clusters, archived sessions, total tabs archived, plus recent archives.
 - **Clusters** — one AI pass groups every tab in the current window into cards (name, summary, count, favicon strip, **Archive**). Expand a card to act on individual tabs; double-click a name to rename.
 - **Archived** — searchable history of past archives; expand any session to see its tabs, open one in a click, **Reopen all**, or **Delete**.
-- **Settings** — API key entry (show/hide), model info, JSON backup/restore, and a danger zone to clear the cache or wipe all sessions.
+- **Settings** — pick any AI provider, set model + key (show/hide), live config readout, JSON backup/restore, and a danger zone to clear the cache or wipe all sessions.
+
+## Bring your own AI provider
+
+Tabulate isn't tied to one vendor. Settings has a provider dropdown — pick one, set the model, paste the key:
+
+- **Anthropic** (Claude) · **OpenAI** · **Google Gemini** · **Groq** · **OpenRouter** · **DeepSeek** · **Mistral** · **xAI (Grok)** · **Together AI**
+- **Custom (OpenAI-compatible)** — any `/chat/completions` endpoint (local LLMs, self-hosted, niche providers): just give it a base URL.
+
+Three request shapes under the hood — Anthropic `/v1/messages`, OpenAI-style `/chat/completions` (covers most), and Gemini `generateContent`. The clustering call runs from the extension's service worker, which has host permissions for all hosts, so it isn't blocked by browser CORS. Provider, model, base URL and key all live in `chrome.storage.local`.
 
 ## v0.2 — quality-of-life improvements
 
@@ -51,12 +60,12 @@ Then load it:
 
 ### API key
 
-The Anthropic key is **never hardcoded**. Two ways to provide it:
+Keys are **never hardcoded**. Two ways to provide one:
 
-- **Settings view (recommended):** dashboard → Settings → paste `sk-ant-...` → Save. Stored in `chrome.storage.local`.
-- **Build-time `.env`:** `cp .env.example .env`, set `ANTHROPIC_API_KEY`, then `npm run build`. The key is baked into the bundle.
+- **Settings view (recommended):** dashboard → Settings → pick provider → set model + key → Save. Stored in `chrome.storage.local`.
+- **Build-time `.env`:** `cp .env.example .env`, set `ANTHROPIC_API_KEY`, then `npm run build`. Baked into the bundle as a fallback — applies only to the default Anthropic provider.
 
-`.env` is gitignored. The Settings key takes priority over a baked key.
+`.env` is gitignored. A key set in Settings always takes priority.
 
 > **Security note:** this is a client-only extension, so the API call runs in the browser and the key lives in browser storage (or the built bundle). Fine for a personal/portfolio build. For anything public, put the Anthropic call behind a small proxy server and never ship the key to the client. Don't publish your `dist/` if you baked a key into it.
 
@@ -75,7 +84,7 @@ After a rebuild, hit the reload icon on the extension card in `chrome://extensio
 1. The toolbar icon has no popup — clicking it tells the background service worker to open (or focus) the dashboard tab.
 2. From the dashboard, the Clusters view asks the background worker to cluster.
 3. Background queries tabs in the current window and, for each eligible tab, injects a tiny function via `chrome.scripting.executeScript` to read `meta[name=description]` / `og:description` / first heading (truncated). Restricted pages and the extension's own pages are skipped.
-4. All tabs go into **one** request to the Anthropic API (`claude-sonnet-4-6`). A JSON-only system prompt enforces the cluster schema.
+4. All tabs go into **one** request to whichever provider is configured (Anthropic / OpenAI-style / Gemini). A JSON-only system prompt enforces the cluster schema.
 5. The response is parsed, validated, cached in `chrome.storage.local`, and rendered as cards. Archiving writes a `session_<timestamp>` entry and closes the tabs.
 
 ### Cluster schema
@@ -106,7 +115,8 @@ manifest.json          MV3 manifest (action opens dashboard, no popup)
 build.mjs              esbuild build (+ .env loader, static + icon copy)
 make-icons.mjs         dependency-free PNG icon generator
 src/lib/types.ts       shared types + message contracts
-src/lib/ai.ts          Anthropic call, JSON-only prompt, response parsing
+src/lib/providers.ts   provider registry (Anthropic / OpenAI-style / Gemini / custom)
+src/lib/ai.ts          multi-provider call, JSON-only prompt, response parsing
 src/background/        service worker: open dashboard, tab collection, signal, clustering, cache
 src/dashboard/         full-page app: overview, clusters, archived history, settings
 src/icons/             generated 16/48/128 PNGs
