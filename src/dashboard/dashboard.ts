@@ -5,6 +5,7 @@ import type {
   CachedClustering,
   Cluster,
   ClusterResponse,
+  GroupResponse,
 } from '../lib/types'
 
 const OWN_ORIGIN = chrome.runtime.getURL('')
@@ -352,7 +353,11 @@ async function closeTabInCluster(cluster: Cluster, tabId: number, url: string) {
   renderClusters()
 }
 
-function clusterCard(cluster: Cluster, tabs: Record<number, ArchivedTab>): HTMLElement {
+function clusterCard(
+  cluster: Cluster,
+  tabs: Record<number, ArchivedTab>,
+  index = 0,
+): HTMLElement {
   const metas = cluster.tabIds
     .map((id) => ({ id, meta: tabs[id] }))
     .filter((x) => x.meta) as { id: number; meta: ArchivedTab }[]
@@ -420,13 +425,17 @@ function clusterCard(cluster: Cluster, tabs: Record<number, ArchivedTab>): HTMLE
     input.onclick = (ev) => ev.stopPropagation()
   }
 
+  const groupOne = el('button', { className: 'btn btn-sm', title: 'Make a Chrome tab group' }, [
+    '⊞ Group',
+  ])
+  groupOne.onclick = () => applyGroups(index)
   const archiveBtn = el('button', { className: 'btn btn-accent btn-sm' }, ['Archive'])
   archiveBtn.onclick = () => archiveCluster(cluster)
 
   const card = el('div', { className: 'card fade' }, [
     head,
     el('p', { className: 'summary' }, [cluster.summary || '—']),
-    el('div', { className: 'card-foot' }, [strip, archiveBtn]),
+    el('div', { className: 'card-foot' }, [strip, groupOne, archiveBtn]),
     body,
   ])
   card.style.setProperty('--hue', String(hue))
@@ -436,6 +445,35 @@ function clusterCard(cluster: Cluster, tabs: Record<number, ArchivedTab>): HTMLE
 function reclusterBtn(): HTMLElement {
   const b = el('button', { className: 'btn' }, ['↻ Re-cluster'])
   b.onclick = () => loadClusters(true)
+  return b
+}
+
+let toastTimer: number | undefined
+function toast(msg: string, kind: 'ok' | 'err' = 'ok') {
+  let t = document.getElementById('toast')
+  if (!t) {
+    t = el('div', { id: 'toast', className: 'toast' })
+    document.body.append(t)
+  }
+  t.textContent = msg
+  t.className = 'toast show' + (kind === 'err' ? ' err' : '')
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => (t!.className = 'toast'), 2800)
+}
+
+async function applyGroups(only?: number) {
+  const res = (await chrome.runtime.sendMessage({ type: 'GROUP', only })) as GroupResponse
+  if (res.ok) {
+    const { groups, tabs } = res.result
+    toast(`Grouped ${tabs} tab${tabs === 1 ? '' : 's'} into ${groups} Chrome group${groups === 1 ? '' : 's'}`)
+  } else {
+    toast(res.error, 'err')
+  }
+}
+
+function groupBtn(): HTMLElement {
+  const b = el('button', { className: 'btn btn-accent' }, ['⊞ Group in Chrome'])
+  b.onclick = () => applyGroups()
   return b
 }
 
@@ -459,15 +497,16 @@ async function loadClusters(force: boolean) {
 }
 
 function renderClusters() {
-  setActions(reclusterBtn())
   if (!lastResult || lastResult.clusters.length === 0) {
+    setActions(reclusterBtn())
     contentEl.replaceChildren(
       empty('⛶', 'No clusters yet.', 'Hit Re-cluster to analyze your open tabs.'),
     )
     return
   }
+  setActions(groupBtn(), reclusterBtn())
   const grid = el('div', { className: 'grid' })
-  for (const c of lastResult.clusters) grid.append(clusterCard(c, lastResult.tabs))
+  lastResult.clusters.forEach((c, i) => grid.append(clusterCard(c, lastResult!.tabs, i)))
   stagger(grid)
   contentEl.replaceChildren(
     el('div', { className: 'fade' }, [

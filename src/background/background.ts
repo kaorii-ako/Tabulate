@@ -178,6 +178,54 @@ async function cluster(force: boolean): Promise<CachedClustering> {
   return result
 }
 
+const GROUP_COLORS: chrome.tabGroups.ColorEnum[] = [
+  'blue',
+  'red',
+  'yellow',
+  'green',
+  'pink',
+  'purple',
+  'cyan',
+  'orange',
+]
+
+function colorForName(name: string): chrome.tabGroups.ColorEnum {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return GROUP_COLORS[h % GROUP_COLORS.length]
+}
+
+// Materialize the cached clusters as native Chrome tab groups (named + colored).
+async function applyGroups(only?: number): Promise<{ groups: number; tabs: number }> {
+  const { lastClustering } = await chrome.storage.local.get('lastClustering')
+  const cc = lastClustering as CachedClustering | undefined
+  if (!cc) throw new Error('Nothing clustered yet — run clustering first.')
+
+  const win = await chrome.windows.getCurrent()
+  const liveTabs = await chrome.tabs.query({ windowId: win.id })
+  const live = new Set(liveTabs.map((t) => t.id).filter((x): x is number => x != null))
+
+  const targets =
+    only == null ? cc.clusters : cc.clusters[only] ? [cc.clusters[only]] : []
+
+  let groups = 0
+  let tabsGrouped = 0
+  for (const c of targets) {
+    if (c.name === 'Ungrouped') continue
+    const ids = c.tabIds.filter((id) => live.has(id))
+    if (ids.length === 0) continue
+    const groupId = await chrome.tabs.group({
+      tabIds: ids as [number, ...number[]],
+      createProperties: { windowId: win.id },
+    })
+    await chrome.tabGroups.update(groupId, { title: c.name, color: colorForName(c.name) })
+    groups++
+    tabsGrouped += ids.length
+  }
+  if (groups === 0) throw new Error('No matching open tabs to group — they may have changed.')
+  return { groups, tabs: tabsGrouped }
+}
+
 chrome.runtime.onMessage.addListener(
   (msg: BackgroundRequest, _sender, sendResponse) => {
     if (msg?.type === 'CLUSTER') {
@@ -186,6 +234,12 @@ chrome.runtime.onMessage.addListener(
         .catch((err) =>
           sendResponse({ ok: false, error: err?.message || String(err) }),
         )
+      return true
+    }
+    if (msg?.type === 'GROUP') {
+      applyGroups(msg.only)
+        .then((result) => sendResponse({ ok: true, result }))
+        .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }))
       return true
     }
     if (msg?.type === 'INVALIDATE') {
