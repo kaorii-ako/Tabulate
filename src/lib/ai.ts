@@ -13,6 +13,16 @@ const SYSTEM = [
 const MAX_TOKENS = 4096
 
 export async function callAI(cfg: AIConfig, tabs: TabSignal[]): Promise<Cluster[]> {
+  if (!cfg.baseUrl) throw new Error('No API base URL configured')
+  try {
+    const u = new URL(cfg.baseUrl)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+      throw new Error('Invalid API base URL protocol')
+    }
+  } catch {
+    throw new Error('Invalid API base URL')
+  }
+
   const payload = tabs.map((t) => ({
     id: t.id,
     title: t.title.slice(0, 160),
@@ -94,6 +104,10 @@ async function callGemini(cfg: AIConfig, userText: string): Promise<string> {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
 }
 
+function sanitizeText(s: string): string {
+  return s.replace(/<[^>]*>/g, '').replace(/&[a-z]+;/gi, '').trim()
+}
+
 function parseClusters(text: string): Cluster[] {
   let s = text.trim()
   if (s.startsWith('```')) {
@@ -120,8 +134,8 @@ function parseClusters(text: string): Cluster[] {
   return raw
     .map(
       (c: any): Cluster => ({
-        name: String(c?.name ?? 'Untitled'),
-        summary: String(c?.summary ?? ''),
+        name: sanitizeText(String(c?.name ?? 'Untitled')).slice(0, 60),
+        summary: sanitizeText(String(c?.summary ?? '')).slice(0, 200),
         tabIds: Array.isArray(c?.tabIds)
           ? c.tabIds.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n))
           : [],

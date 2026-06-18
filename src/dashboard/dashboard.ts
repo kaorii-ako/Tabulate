@@ -20,6 +20,7 @@ const VIEWS: View[] = ['overview', 'clusters', 'archived', 'settings']
 
 let lastResult: CachedClustering | null = null
 let archivedQuery = ''
+let clustering = false
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -98,6 +99,24 @@ function trackSpotlight(node: HTMLElement) {
     const r = node.getBoundingClientRect()
     node.style.setProperty('--mx', `${e.clientX - r.left}px`)
     node.style.setProperty('--my', `${e.clientY - r.top}px`)
+  })
+}
+
+function tiltCard(node: HTMLElement) {
+  node.classList.add('tilt')
+  node.addEventListener('pointermove', (e) => {
+    const r = node.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width - 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5
+    node.style.transform = `perspective(800px) rotateY(${x * 6}deg) rotateX(${-y * 6}deg) translateY(-2px)`
+  })
+  node.addEventListener('pointerleave', () => {
+    node.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+    node.style.transform = ''
+    setTimeout(() => { node.style.transition = '' }, 400)
+  })
+  node.addEventListener('pointerenter', () => {
+    node.style.transition = 'transform 0.1s ease-out'
   })
 }
 
@@ -288,6 +307,7 @@ async function renderOverview() {
     if (num !== null) countUp(numEl, num)
     const card = el('div', { className: 'stat' }, [numEl, el('div', { className: 'label' }, [label])])
     trackSpotlight(card)
+    tiltCard(card)
     return card
   }
 
@@ -372,7 +392,6 @@ function clusterCard(
 
   // Expandable tab list — activate or close individual tabs.
   const body = el('div', { className: 'cluster-tabs' })
-  body.style.display = 'none'
   metas.forEach(({ id, meta }) => {
     const title = el('span', { className: 't' }, [meta.title])
     const close = el('button', { className: 'ctab-x', title: 'Close tab' }, ['✕'])
@@ -397,8 +416,7 @@ function clusterCard(
 
   const head = el('div', { className: 'card-head' }, [dot, name, count, chev])
   head.onclick = () => {
-    const open = body.style.display === 'none'
-    body.style.display = open ? 'block' : 'none'
+    const open = body.classList.toggle('open')
     chev.classList.toggle('open', open)
   }
 
@@ -406,6 +424,7 @@ function clusterCard(
   name.ondblclick = (e) => {
     e.stopPropagation()
     const input = el('input', { className: 'rename', value: cluster.name }) as HTMLInputElement
+    input.maxLength = 60
     name.replaceWith(input)
     input.focus()
     input.select()
@@ -439,6 +458,7 @@ function clusterCard(
     body,
   ])
   card.style.setProperty('--hue', String(hue))
+  tiltCard(card)
   return card
 }
 
@@ -478,6 +498,8 @@ function groupBtn(): HTMLElement {
 }
 
 async function loadClusters(force: boolean) {
+  if (clustering) return
+  clustering = true
   setActions(reclusterBtn())
   contentEl.replaceChildren(
     spinner(force ? 'Re-clustering your tabs…' : 'Reading and clustering your tabs…'),
@@ -488,6 +510,7 @@ async function loadClusters(force: boolean) {
     force,
   })) as ClusterResponse
 
+  clustering = false
   if (res.ok) {
     lastResult = res.result
     renderClusters()
@@ -551,8 +574,9 @@ async function archiveCluster(cluster: Cluster) {
   const tabs = knownIds.map((id) => lastResult!.tabs[id])
 
   const stamp = Date.now()
+  const suffix = crypto.randomUUID().slice(0, 8)
   await chrome.storage.local.set({
-    [`session_${stamp}`]: {
+    [`session_${stamp}_${suffix}`]: {
       archivedAt: stamp,
       name: cluster.name,
       summary: cluster.summary,
@@ -623,7 +647,6 @@ function paintSessions(list: HTMLElement, sessions: ArchivedSession[]) {
 
 function sessionCard(session: ArchivedSession): HTMLElement {
   const body = el('div', { className: 'session-body' })
-  body.style.display = 'none'
 
   session.tabs.forEach((t) => {
     const row = el('a', {
@@ -666,12 +689,13 @@ function sessionCard(session: ArchivedSession): HTMLElement {
     el('span', { className: 'when' }, [timeAgo(session.archivedAt)]),
   ])
   head.onclick = () => {
-    const open = body.style.display === 'none'
-    body.style.display = open ? 'block' : 'none'
+    const open = body.classList.toggle('open')
     chev.classList.toggle('open', open)
   }
 
-  return el('div', { className: 'session fade' }, [head, body])
+  const card = el('div', { className: 'session fade' }, [head, body])
+  tiltCard(card)
+  return card
 }
 
 /* ---------- Backup ---------- */
@@ -694,23 +718,45 @@ async function exportArchives(): Promise<number> {
 
 async function importArchives(file: File): Promise<number> {
   const text = await file.text()
-  const data = JSON.parse(text)
-  const list: any[] = Array.isArray(data) ? data : Array.isArray(data?.sessions) ? data.sessions : []
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return 0
+  }
+  const list: any[] = Array.isArray(data) ? data : Array.isArray((data as any)?.sessions) ? (data as any).sessions : []
+  const MAX_SESSIONS = 100
+  const MAX_TABS_PER_SESSION = 500
   let added = 0
   const writes: Record<string, unknown> = {}
-  list.forEach((s, i) => {
-    if (!s || !Array.isArray(s.tabs)) return
-    const stamp = (Number(s.archivedAt) || Date.now()) + i
+  for (const s of list.slice(0, MAX_SESSIONS)) {
+    if (!s || !Array.isArray(s.tabs)) continue
+    const stamp = (Number(s.archivedAt) || Date.now()) + added
+    const safeTabs = s.tabs
+      .filter((t: any) => t && typeof t.url === 'string')
+      .filter((t: any) => {
+        try {
+          const u = new URL(t.url)
+          return u.protocol === 'http:' || u.protocol === 'https:'
+        } catch {
+          return false
+        }
+      })
+      .slice(0, MAX_TABS_PER_SESSION)
+      .map((t: any) => ({
+        title: String(t.title ?? t.url).replace(/<[^>]*>/g, '').slice(0, 200),
+        url: t.url.slice(0, 2000),
+        favIconUrl: typeof t.favIconUrl === 'string' ? t.favIconUrl.slice(0, 500) : undefined,
+      }))
+    if (safeTabs.length === 0) continue
     writes[`session_${stamp}`] = {
       archivedAt: stamp,
-      name: String(s.name ?? 'Imported session'),
-      summary: String(s.summary ?? ''),
-      tabs: s.tabs
-        .filter((t: any) => t && typeof t.url === 'string')
-        .map((t: any) => ({ title: String(t.title ?? t.url), url: t.url, favIconUrl: t.favIconUrl })),
+      name: String(s.name ?? 'Imported session').replace(/<[^>]*>/g, '').slice(0, 120),
+      summary: String(s.summary ?? '').replace(/<[^>]*>/g, '').slice(0, 300),
+      tabs: safeTabs,
     }
     added++
-  })
+  }
   if (added > 0) await chrome.storage.local.set(writes)
   return added
 }
@@ -786,11 +832,33 @@ async function renderSettings() {
 
   const save = el('button', { className: 'btn btn-accent' }, ['Save'])
   save.onclick = async () => {
+    const key = input.value.trim()
+    const mdl = model.value.trim()
+    const base = baseUrl.value.trim()
+
+    if (provider.custom && base) {
+      try {
+        const u = new URL(base)
+        if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+          flash('Base URL must use HTTPS or HTTP')
+          return
+        }
+      } catch {
+        flash('Invalid base URL')
+        return
+      }
+    }
+
+    if (key && !/^[a-zA-Z0-9_\-.]+$/.test(key)) {
+      flash('API key contains invalid characters')
+      return
+    }
+
     await chrome.storage.local.set({
       provider: provider.id,
-      apiKey: input.value.trim(),
-      model: model.value.trim(),
-      baseUrl: baseUrl.value.trim(),
+      apiKey: key,
+      model: mdl,
+      baseUrl: base,
     })
     await chrome.runtime.sendMessage({ type: 'INVALIDATE' }).catch(() => {})
     flash('Saved')
@@ -855,12 +923,20 @@ async function renderSettings() {
   const wipe = el('button', { className: 'btn btn-danger btn-sm' }, [
     `Delete ${sessions.length}`,
   ])
+  let wipeConfirm = false
   wipe.onclick = async () => {
     if (sessions.length === 0) return
-    if (!confirm(`Delete all ${sessions.length} archived sessions? This cannot be undone.`)) return
+    if (!wipeConfirm) {
+      wipeConfirm = true
+      wipe.textContent = 'Confirm delete'
+      wipe.classList.add('btn-confirm-active')
+      setTimeout(() => { wipeConfirm = false; wipe.textContent = `Delete ${sessions.length}`; wipe.classList.remove('btn-confirm-active') }, 4000)
+      return
+    }
     await chrome.storage.local.remove(sessions.map((s) => s.key))
     flash('Deleted')
     wipe.textContent = 'Delete 0'
+    wipeConfirm = false
   }
 
   const status2 = el('span', { className: 'status' })
@@ -948,6 +1024,10 @@ function route() {
           ? 'Archived Sessions'
           : 'Settings'
 
+  contentEl.classList.remove('view-enter')
+  void contentEl.offsetWidth
+  contentEl.classList.add('view-enter')
+
   if (view === 'overview') void renderOverview()
   else if (view === 'clusters') {
     if (lastResult) renderClusters()
@@ -959,6 +1039,20 @@ function route() {
 window.addEventListener('hashchange', route)
 
 document.getElementById('quickswitch')?.addEventListener('click', () => void openPalette())
+
+const mobileToggle = document.getElementById('mobile-toggle')
+const sidebar = document.querySelector('.sidebar') as HTMLElement
+mobileToggle?.addEventListener('click', () => {
+  sidebar.classList.toggle('open')
+})
+document.addEventListener('click', (e) => {
+  if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+    const target = e.target as HTMLElement
+    if (!sidebar.contains(target) && target !== mobileToggle && !mobileToggle?.contains(target)) {
+      sidebar.classList.remove('open')
+    }
+  }
+})
 
 window.addEventListener('keydown', (e) => {
   // Quick switch — Cmd/Ctrl+K from anywhere.

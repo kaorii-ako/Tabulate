@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: data:; script-src 'self'; connect-src 'self' https:;" />
     <link rel="stylesheet" href="dashboard.css" />
     <title>Tabulate</title>
   </head>
@@ -23,11 +24,14 @@
         <div class="sidebar-foot">
           <div class="kbd-hint"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd>switch views</div>
           <span class="muted">AI tab manager</span>
-          <span class="muted" id="version">v0.3.0</span>
+          <span class="muted" id="version">v1.0.0</span>
         </div>
       </aside>
       <main class="main">
         <header class="topbar">
+          <button id="mobile-toggle" class="mobile-toggle" aria-label="Toggle menu">
+            <span>☰</span>
+          </button>
           <h1 id="title">Overview</h1>
           <button id="quickswitch" class="qs-btn" title="Quick switch to any open tab">
             <span class="qs-ico">⌕</span>Quick switch<kbd>⌘K</kbd>

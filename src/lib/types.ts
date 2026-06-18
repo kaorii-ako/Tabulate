@@ -46,7 +46,14 @@ export interface ArchivedSession {
 export type ClusterRequest = { type: 'CLUSTER'; force?: boolean }
 export type InvalidateRequest = { type: 'INVALIDATE' }
 export type GroupRequest = { type: 'GROUP'; only?: number }
-export type BackgroundRequest = ClusterRequest | InvalidateRequest | GroupRequest
+export type WindowRequest = { type: 'WINDOW'; only: number }
+export type UngroupRequest = { type: 'UNGROUP' }
+export type BackgroundRequest =
+  | ClusterRequest
+  | InvalidateRequest
+  | GroupRequest
+  | WindowRequest
+  | UngroupRequest
 
 export type ClusterResponse =
   | { ok: true; result: CachedClustering }
@@ -54,4 +61,8 @@ export type ClusterResponse =
 
 export type GroupResponse =
   | { ok: true; result: { groups: number; tabs: number } }
+  | { ok: false; error: string }
+
+export type ActionResponse =
+  | { ok: true; result: { count: number } }
   | { ok: false; error: string }

@@ -12,6 +12,8 @@ declare const __BAKED_API_KEY__: string
 
 const DASHBOARD_URL = chrome.runtime.getURL('dashboard.html')
 const OWN_ORIGIN = chrome.runtime.getURL('')
+const CLUSTER_COOLDOWN_MS = 5000
+let lastClusterTime = 0
 
 const RESTRICTED = [
   /^chrome:\/\//i,
@@ -148,6 +150,12 @@ function sanitizeClusters(
 }
 
 async function cluster(force: boolean): Promise<CachedClustering> {
+  const now = Date.now()
+  if (!force && now - lastClusterTime < CLUSTER_COOLDOWN_MS) {
+    throw new Error('Please wait a few seconds before re-clustering.')
+  }
+  lastClusterTime = now
+
   const win = await chrome.windows.getCurrent()
 
   if (!force) {
@@ -227,7 +235,8 @@ async function applyGroups(only?: number): Promise<{ groups: number; tabs: numbe
 }
 
 chrome.runtime.onMessage.addListener(
-  (msg: BackgroundRequest, _sender, sendResponse) => {
+  (msg: BackgroundRequest, sender, sendResponse) => {
+    if (sender.id !== chrome.runtime.id) return false
     if (msg?.type === 'CLUSTER') {
       cluster(!!msg.force)
         .then((result) => sendResponse({ ok: true, result }))
