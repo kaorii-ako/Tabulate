@@ -34,6 +34,8 @@ function copyStatic() {
   copy('manifest.json', `${outdir}/manifest.json`)
   copy('src/dashboard/index.html', `${outdir}/dashboard.html`)
   copy('src/dashboard/dashboard.css', `${outdir}/dashboard.css`)
+  copy('src/popup/popup.html', `${outdir}/popup.html`)
+  copy('src/popup/popup.css', `${outdir}/popup.css`)
   for (const s of [16, 48, 128]) {
     copy(`src/icons/icon${s}.png`, `${outdir}/icons/icon${s}.png`)
   }
@@ -50,6 +52,7 @@ const shared = {
 const entries = [
   { in: 'src/background/background.ts', out: `${outdir}/background.js` },
   { in: 'src/dashboard/dashboard.ts', out: `${outdir}/dashboard.js` },
+  { in: 'src/popup/popup.ts', out: `${outdir}/popup.js` },
 ]
 
 async function run() {

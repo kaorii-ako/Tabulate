@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Tabulate</title>
+  </head>
+  <body>
+    <div class="popup">
+      <div class="header">
+        <img src="icons/icon48.png" alt="" class="logo" />
+        <div class="header-text">
+          <h1>Tabulate</h1>
+          <span class="tagline">AI tab manager</span>
+        </div>
+      </div>
+
+      <div class="stats" id="stats">
+        <div class="stat-item">
+          <span class="stat-num" id="tab-count">—</span>
+          <span class="stat-label">open tabs</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="cluster-count">—</span>
+          <span class="stat-label">clusters</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="cluster-btn" class="btn btn-primary">
+          <span class="btn-icon">⛶</span>
+          Quick Cluster
+        </button>
+        <button id="group-btn" class="btn btn-secondary">
+          <span class="btn-icon">⊞</span>
+          Group in Chrome
+        </button>
+        <button id="settings-btn" class="btn btn-ghost">
+          <span class="btn-icon">⚙</span>
+          Settings
+        </button>
+      </div>
+
+      <div id="status" class="status hidden"></div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

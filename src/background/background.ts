@@ -10,7 +10,6 @@ import type {
 
 declare const __BAKED_API_KEY__: string
 
-const DASHBOARD_URL = chrome.runtime.getURL('dashboard.html')
 const OWN_ORIGIN = chrome.runtime.getURL('')
 const CLUSTER_COOLDOWN_MS = 5000
 let lastClusterTime = 0
@@ -62,22 +61,6 @@ async function getConfig(): Promise<AIConfig> {
 
   return { provider: p.id, kind: p.kind, baseUrl, model, apiKey: key }
 }
-
-async function openDashboard() {
-  const existing = await chrome.tabs.query({ url: DASHBOARD_URL })
-  if (existing.length > 0 && existing[0].id != null) {
-    await chrome.tabs.update(existing[0].id, { active: true })
-    if (existing[0].windowId != null) {
-      await chrome.windows.update(existing[0].windowId, { focused: true })
-    }
-    return
-  }
-  await chrome.tabs.create({ url: DASHBOARD_URL })
-}
-
-chrome.action.onClicked.addListener(() => {
-  void openDashboard()
-})
 
 async function collectTabs(): Promise<{
   signals: TabSignal[]

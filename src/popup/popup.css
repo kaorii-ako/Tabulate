@@ -1,0 +1,230 @@
+:root {
+  --bg: #0a0b0f;
+  --bg-2: #0d0f15;
+  --panel: #11141b;
+  --card: #14171f;
+  --card-hover: #1a1e28;
+  --border: #242935;
+  --border-soft: #1b2029;
+  --text: #eceef2;
+  --muted: #8b93a3;
+  --faint: #5a6373;
+  --accent: #6c8cff;
+  --accent-2: #b07bff;
+  --accent-soft: rgba(108, 140, 255, 0.14);
+  --ok: #4ed8a8;
+  --danger: #ff6b7d;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.popup {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(108, 140, 255, 0.3), 0 8px 22px rgba(108, 140, 255, 0.3);
+}
+
+.header-text h1 {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  background: linear-gradient(100deg, #fff 0%, #b9c8ff 55%, #d9c2ff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tagline {
+  font-size: 11.5px;
+  color: var(--faint);
+  font-weight: 500;
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  transition: border-color 0.14s ease;
+}
+
+.stat-item:hover {
+  border-color: var(--accent);
+}
+
+.stat-num {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  background: linear-gradient(165deg, #fff 0%, #aebfe8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 4px;
+  display: block;
+}
+
+/* Buttons */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  background: var(--card-hover);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 8px 22px -8px rgba(108, 140, 255, 0.7);
+  border-color: transparent;
+}
+
+.btn-secondary {
+  background: var(--card);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border-soft);
+}
+
+.btn-ghost:hover {
+  background: var(--card);
+}
+
+/* Status */
+.status {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.status.hidden {
+  display: none;
+}
+
+.status.success {
+  background: rgba(78, 216, 168, 0.1);
+  border: 1px solid rgba(78, 216, 168, 0.3);
+  color: var(--ok);
+}
+
+.status.error {
+  background: rgba(255, 107, 125, 0.1);
+  border: 1px solid rgba(255, 107, 125, 0.3);
+  color: var(--danger);
+}
+
+.status.loading {
+  background: var(--accent-soft);
+  border: 1px solid rgba(108, 140, 255, 0.3);
+  color: var(--accent);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading spinner for buttons */
+.btn.loading {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.btn.loading::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-left: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

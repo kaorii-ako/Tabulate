@@ -9,7 +9,8 @@
     "extension_pages": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; connect-src 'self' https:; base-uri 'self'; form-action 'self'"
   },
   "action": {
-    "default_title": "Open Tabulate",
+    "default_title": "Tabulate",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
