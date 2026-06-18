@@ -16,8 +16,12 @@ async function loadStats() {
     tabCountEl.textContent = String(openTabs.length)
 
     const { lastClustering } = await chrome.storage.local.get('lastClustering')
-    if (lastClustering?.clusters) {
+    if (lastClustering?.clusters?.length) {
       clusterCountEl.textContent = String(lastClustering.clusters.length)
+      groupBtn.disabled = false
+    } else {
+      clusterCountEl.textContent = '0'
+      groupBtn.disabled = true
     }
   } catch {
     tabCountEl.textContent = '?'
@@ -27,6 +31,11 @@ async function loadStats() {
 function showStatus(msg: string, kind: 'success' | 'error' | 'loading') {
   statusEl.textContent = msg
   statusEl.className = `status ${kind}`
+  if (kind !== 'loading') {
+    setTimeout(() => {
+      statusEl.className = 'status hidden'
+    }, 3000)
+  }
 }
 
 async function quickCluster() {
@@ -85,5 +94,12 @@ function openSettings() {
 clusterBtn.addEventListener('click', quickCluster)
 groupBtn.addEventListener('click', groupTabs)
 settingsBtn.addEventListener('click', openSettings)
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') window.close()
+  if (e.key === '1') quickCluster()
+  if (e.key === '2' && !groupBtn.disabled) groupTabs()
+  if (e.key === '3') openSettings()
+})
 
 loadStats()

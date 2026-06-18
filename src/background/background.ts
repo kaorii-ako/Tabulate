@@ -223,9 +223,16 @@ chrome.runtime.onMessage.addListener(
     if (msg?.type === 'CLUSTER') {
       cluster(!!msg.force)
         .then((result) => sendResponse({ ok: true, result }))
-        .catch((err) =>
-          sendResponse({ ok: false, error: err?.message || String(err) }),
-        )
+        .catch((err) => {
+          const error = err?.message || String(err)
+          if (error === 'NO_API_KEY') {
+            sendResponse({ ok: false, error: 'No API key configured. Open Settings to add one.' })
+          } else if (error.includes('fetch')) {
+            sendResponse({ ok: false, error: 'Network error. Check your connection and API endpoint.' })
+          } else {
+            sendResponse({ ok: false, error })
+          }
+        })
       return true
     }
     if (msg?.type === 'GROUP') {

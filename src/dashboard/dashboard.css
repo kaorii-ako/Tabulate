@@ -1307,3 +1307,51 @@ kbd {
   transform: translateY(-1px);
   transition: border-color 0.14s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* Pulsing dot for active clusters */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.card:hover .dot {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Better disabled state for buttons */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Keyboard shortcut badges */
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--faint);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+/* Subtle gradient border on focus */
+.search:focus {
+  background: linear-gradient(var(--card), var(--card)) padding-box,
+              linear-gradient(135deg, var(--accent), var(--accent-2)) border-box;
+  border: 1px solid transparent;
+}
+
+/* Improved stat card interaction */
+.stat {
+  cursor: default;
+}
+.stat:active {
+  transform: translateY(-2px) scale(1.01);
+}

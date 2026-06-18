@@ -112,13 +112,14 @@ Multi-window support, cross-browser builds, settings beyond the API key.
 ## Layout
 
 ```
-manifest.json          MV3 manifest (action opens dashboard, no popup)
+manifest.json          MV3 manifest (action opens popup, settings opens dashboard)
 build.mjs              esbuild build (+ .env loader, static + icon copy)
 make-icons.mjs         dependency-free PNG icon generator
 src/lib/types.ts       shared types + message contracts
 src/lib/providers.ts   provider registry (Anthropic / OpenAI-style / Gemini / custom)
 src/lib/ai.ts          multi-provider call, JSON-only prompt, response parsing
-src/background/        service worker: open dashboard, tab collection, signal, clustering, cache
+src/background/        service worker: tab collection, signal, clustering, cache
+src/popup/             toolbar popup: quick cluster, group, settings shortcut
 src/dashboard/         full-page app: overview, clusters, archived history, settings
 src/icons/             generated 16/48/128 PNGs
 ```
