@@ -7,6 +7,8 @@ An AI-powered tab manager — Chrome extension, Manifest V3, TypeScript.
 
 ## What it looks like
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/48ca8ce5-9513-47f0-aade-d776918ae99a" />
+
 Clicking the toolbar icon opens a full-page **dashboard** (served from the
 extension itself — no server, works offline) with four views:
 
