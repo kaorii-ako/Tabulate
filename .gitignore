@@ -8,3 +8,5 @@ tsconfig.tsbuildinfo
 .mimocode/
 _
 *.pem
+*.crx
+*.zip
