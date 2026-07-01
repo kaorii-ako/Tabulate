@@ -125,3 +125,7 @@ src/popup/             toolbar popup: quick cluster, group, settings shortcut
 src/dashboard/         full-page app: overview, clusters, archived history, settings
 src/icons/             generated 16/48/128 PNGs
 ```
+
+## AI Usage
+
+Used AI for debugging and code generation.
