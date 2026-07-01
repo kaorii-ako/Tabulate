@@ -128,4 +128,8 @@ src/icons/             generated 16/48/128 PNGs
 
 ## AI Usage
 
+Used AI for debugging and code generation. Made by human.
+
+## AI Usage
+
 Used AI for debugging and code generation.
